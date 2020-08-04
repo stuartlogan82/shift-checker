@@ -1,6 +1,7 @@
 from flask import Flask, render_template
 import connexion
 
+
 app = connexion.App(__name__, specification_dir="./")
 
 app.add_api('swagger.yml')
@@ -12,4 +13,4 @@ def home():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(ssl_context=('cert.pem', 'key.pem'), debug=True)

@@ -124,14 +124,19 @@ def read():
 
 
 def update(weekday, time, assignee):
+    updated_shift = {}
     for num, day in enumerate(WEEK):
         if weekday in day['day']:
             print("Found weekday", weekday)
             if time in WEEK[num]['shifts']:
-                print("Found shidt time", time)
+                print("Found shift time", time)
                 WEEK[num]['shifts'][time]['assignee'] = assignee
                 WEEK[num]['shifts'][time]['timestamp'] = get_timestamp()
-
+                # updated_shift[day] = {
+                #     time: {
+                #         "assignee" =
+                #     }
+                # }
                 add_to_pusher(WEEK)
                 return "OK", 200
 

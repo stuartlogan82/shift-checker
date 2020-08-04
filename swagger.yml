@@ -10,6 +10,9 @@ produces:
   - "application/json"
 
 basePath: "/api"
+# servers:
+#   - url: https://localhost/1.0
+#     description: full url
 
 # Paths supported by server application
 paths:
