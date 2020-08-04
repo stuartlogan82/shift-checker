@@ -1,5 +1,6 @@
 from datetime import datetime
 from flask import make_response, abort, jsonify
+from flask_httpauth import HTTPBasicAuth
 import json
 import pusher
 from dotenv import load_dotenv
@@ -10,6 +11,16 @@ load_dotenv()
 
 def get_timestamp():
     return datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
+
+
+auth = HTTPBasicAuth()
+
+
+@auth.verify_password
+def basic_auth(username, password):
+    if username == os.environ.get("API_USERNAME") and password == os.environ.get("API_PASSWORD"):
+        return True
+    return False
 
 
 WEEK = [
@@ -107,63 +118,52 @@ WEEK = [
 ]
 
 
+@auth.login_required
 def read():
+    """
+    Returns the entire starting roster
+    """
     return WEEK
 
 
-# def read_one(weekday, shift_time):
-#     for num, day in enumerate(WEEK):
-#         if weekday in day['day']:
-#             for time in day['shifts']:
-#                 if shift_time == time:
-#                     shift = day['shifts'][time]
-#     else:
-#         abort(404, f"Shift {day} - {time} not found")
-
-#     return shift
-
-
+@auth.login_required
 def update(weekday, time, assignee):
+    """
+    Takes the required shift (weekday and time) and updates who it is assigned to
+    """
     updated_shift = {}
     for num, day in enumerate(WEEK):
         if weekday in day['day']:
-            print("Found weekday", weekday)
             if time in WEEK[num]['shifts']:
-                print("Found shift time", time)
                 WEEK[num]['shifts'][time]['assignee'] = assignee
                 WEEK[num]['shifts'][time]['timestamp'] = get_timestamp()
-                # updated_shift[day] = {
-                #     time: {
-                #         "assignee" =
-                #     }
-                # }
                 add_to_pusher(WEEK)
-                return "OK", 200
+                return make_response("", 204)
 
-    return "Shift not found"
+    return make_response("Shift not found", 404)
 
 
+@auth.login_required
 def unassigned_shifts():
+    """
+    Return all shifts where nobody is assigned
+    """
     global WEEK
-    print(WEEK)
     no_worker = {'free_shifts': []}
     for num, days in enumerate(WEEK):
         for time, info in WEEK[num]['shifts'].items():
             if info['assignee'] is None:
-                #day = {}
-                #day['day'] = WEEK[num]['day']
                 empty_shift = {}
                 empty_shift['day'] = WEEK[num]['day']
                 empty_shift['time'] = time
-                #empty_shift['shift'][time] = info
-                # day.update(empty_shift)
-
-                #new_day = [WEEK[num]['day'], time]
                 no_worker['free_shifts'].append(empty_shift)
     return no_worker
 
 
 def add_to_pusher(message):
+    """
+    Takes updates to the roster and sends it to Pusher for realtime dashboards to update
+    """
     channels_client = pusher.Pusher(
         app_id=os.environ.get('PUSHER_APP_ID'),
         key=os.environ.get('PUSHER_KEY'),
@@ -176,6 +176,9 @@ def add_to_pusher(message):
 
 
 def random_worker():
+    """
+    Picks a random worker with a chance of none to assign to a shift
+    """
     names = ["Amal", "Eugena", "Kyra", "Harris", "Granville", "Brigette", "Daphine", "Erlinda", "Larae", "Claudia", "Chang", "Willian", "Reuben", "Neida", "Shonna", "Mimi", "Shannon", "Fallon", "Dannette", "Oren"]
     if random() < 0.25:
         return None
@@ -183,7 +186,12 @@ def random_worker():
         return choice(names)
 
 
+@auth.login_required
 def reset_shifts():
+    """
+    Creates an all new roster. Helpful when the realtime display has no
+    unassigned shifts left to show
+    """
     global WEEK
     WEEK = []
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -204,5 +212,5 @@ def reset_shifts():
         }
         shift.update(shifts)
         WEEK.append(shift)
-    print(WEEK)
     add_to_pusher(WEEK)
+    return make_response("New Roster Created and sent to Pusher", 201)

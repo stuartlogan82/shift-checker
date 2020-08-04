@@ -2,7 +2,7 @@ swagger: "2.0"
 info:
   description: Basic shift API
   version: "1.0.0"
-  title: Basic Shit Checking and Updating API
+  title: Basic Shift Checking and Updating API
 
 consumes:
   - "application/x-www-form-urlencoded"
@@ -10,9 +10,6 @@ produces:
   - "application/json"
 
 basePath: "/api"
-# servers:
-#   - url: https://localhost/1.0
-#     description: full url
 
 # Paths supported by server application
 paths:
@@ -42,7 +39,6 @@ paths:
                               type: string
                             timestamp:
                               type: string
-
   /free_shifts:
     get:
       operationId: "shifts.unassigned_shifts"
@@ -53,14 +49,16 @@ paths:
       responses:
         200:
           description: "Successfully found shifts"
-          # schema:
-          #   type: "array"
-          #   items:
-          #     properties:
-          #       day:
-          #         type: string
-          #       time:
-          #         type: string
+          schema:
+            type: "array"
+            items:
+              properties:
+                day:
+                  type: string
+                time:
+                  type: string
+        401:
+          $ref: "#/responses/UnauthorizedError"
   /shift/{weekday}/{time}:
     post:
       operationId: "shifts.update"
@@ -83,8 +81,14 @@ paths:
           in: query
           type: string
       responses:
-        200:
+        204:
           description: Successfully updated shift
+        401:
+          $ref: "#/responses/UnauthorizedError"
+        404:
+          description: Shift not found
+          schema:
+            type: string
   /reset_shifts:
     get:
       operationId: "shifts.reset_shifts"
@@ -93,5 +97,15 @@ paths:
       summary: "Generate a random roster"
       description: "Generate a random roster with some shifts not assigned"
       responses:
-        200:
+        201:
           description: "Successfully randomized shifts"
+          schema:
+            type: string
+#securityDefinitions:
+# Twilio uses challenge/response and needs a Realm to authenticate. Implemented Flask HTTPAuth to handle basic auth
+responses:
+  UnauthorizedError:
+    description: Authentication information is missing or invalid
+    headers:
+      WWW-Authenticate:
+        type: string
