@@ -5,9 +5,12 @@ import json
 import pusher
 from dotenv import load_dotenv
 import os
+from gcloudenv import Settings
 from random import choice, random
 load_dotenv()
 
+USERNAME = os.environ.get("API_USERNAME") or Settings.get("API_USERNAME")
+PASSWORD = os.environ.get("API_PASSWORD") or Settings.get("API_PASSWORD")
 
 def get_timestamp():
     return datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
@@ -18,7 +21,7 @@ auth = HTTPBasicAuth()
 
 @auth.verify_password
 def basic_auth(username, password):
-    if username == os.environ.get("API_USERNAME") and password == os.environ.get("API_PASSWORD"):
+    if username == USERNAME and password == PASSWORD:
         return True
     return False
 
@@ -165,9 +168,9 @@ def add_to_pusher(message):
     Takes updates to the roster and sends it to Pusher for realtime dashboards to update
     """
     channels_client = pusher.Pusher(
-        app_id=os.environ.get('PUSHER_APP_ID'),
-        key=os.environ.get('PUSHER_KEY'),
-        secret=os.environ.get('PUSHER_SECRET'),
+        app_id=os.environ.get('PUSHER_APP_ID') or Settings.get('PUSHER_APP_ID'),
+        key=os.environ.get('PUSHER_KEY') or Settings.get('PUSHER_KEY'),
+        secret=os.environ.get('PUSHER_SECRET') or Settings.get('PUSHER_SECRET'),
         cluster='eu',
         ssl=True
     )
