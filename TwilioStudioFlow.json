@@ -1,0 +1,224 @@
+{
+    "description": "A New Flow",
+    "states": [
+      {
+        "name": "Trigger",
+        "type": "trigger",
+        "transitions": [
+          {
+            "next": "http_1",
+            "event": "incomingMessage"
+          },
+          {
+            "event": "incomingCall"
+          },
+          {
+            "event": "incomingRequest"
+          }
+        ],
+        "properties": {
+          "offset": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      },
+      {
+        "name": "http_1",
+        "type": "make-http-request",
+        "transitions": [
+          {
+            "next": "send_and_reply_1",
+            "event": "success"
+          },
+          {
+            "next": "send_and_reply_1",
+            "event": "failed"
+          }
+        ],
+        "properties": {
+          "offset": {
+            "x": -20,
+            "y": 200
+          },
+          "method": "GET",
+          "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+          "parameters": [],
+          "url": "https://API_USERNAME:API_PASSWORD@api.example.com/api/free_shifts"
+        }
+      },
+      {
+        "name": "send_and_reply_1",
+        "type": "send-and-wait-for-reply",
+        "transitions": [
+          {
+            "next": "split_1",
+            "event": "incomingMessage"
+          },
+          {
+            "event": "timeout"
+          },
+          {
+            "event": "deliveryFailure"
+          }
+        ],
+        "properties": {
+          "offset": {
+            "x": -30,
+            "y": 460
+          },
+          "service": "{{trigger.message.InstanceSid}}",
+          "channel": "{{trigger.message.ChannelSid}}",
+          "from": "{{flow.channel.address}}",
+          "body": "There are {{widgets.http_1.parsed.free_shifts.size}} shifts available:\n{% for item in widgets.http_1.parsed.free_shifts %}\n{{forloop.index}}. {{item.day}} {{item.time | upcase}}\n{% endfor %}\nPlease reply with the shift number you wish to take",
+          "timeout": 3600
+        }
+      },
+      {
+        "name": "split_1",
+        "type": "split-based-on",
+        "transitions": [
+          {
+            "event": "noMatch"
+          },
+          {
+            "next": "set_variables_2",
+            "event": "match",
+            "conditions": [
+              {
+                "friendly_name": "Less than Number of shifts free",
+                "arguments": [
+                  "{{widgets.send_and_reply_1.inbound.Body}}"
+                ],
+                "type": "less_than",
+                "value": "{{widgets.http_1.parsed.free_shifts.size | plus: 1}}"
+              }
+            ]
+          },
+          {
+            "event": "match",
+            "conditions": [
+              {
+                "friendly_name": "If value equal_to 0",
+                "arguments": [
+                  "{{widgets.send_and_reply_1.inbound.Body}}"
+                ],
+                "type": "equal_to",
+                "value": "0"
+              }
+            ]
+          }
+        ],
+        "properties": {
+          "input": "{{widgets.send_and_reply_1.inbound.Body}}",
+          "offset": {
+            "x": -60,
+            "y": 730
+          }
+        }
+      },
+      {
+        "name": "http_2",
+        "type": "make-http-request",
+        "transitions": [
+          {
+            "next": "send_message_1",
+            "event": "success"
+          },
+          {
+            "next": "send_message_2",
+            "event": "failed"
+          }
+        ],
+        "properties": {
+          "offset": {
+            "x": 20,
+            "y": 1350
+          },
+          "method": "POST",
+          "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+          "url": "https://API_USERNAME:API_PASSWORD@api.example.com/api/shift/{{flow.variables.day}}/{{flow.variables.time}}?assignee={{trigger.message.From | remove:\"+\"}}"
+        }
+      },
+      {
+        "name": "set_variables_2",
+        "type": "set-variables",
+        "transitions": [
+          {
+            "next": "http_2",
+            "event": "next"
+          }
+        ],
+        "properties": {
+          "variables": [
+            {
+              "value": "{{widgets.send_and_reply_1.inbound.Body | plus:0}}",
+              "key": "shift_num"
+            },
+            {
+              "value": "{% assign i = widgets.send_and_reply_1.inbound.Body | minus: 1 %}{{widgets.http_1.parsed.free_shifts[i].day | strip | lstrip | strip_newlines }}",
+              "key": "day"
+            },
+            {
+              "value": "{% assign i = widgets.send_and_reply_1.inbound.Body | minus: 1 %}{{widgets.http_1.parsed.free_shifts[i].time | strip | lstrip | strip_newlines }}",
+              "key": "time"
+            }
+          ],
+          "offset": {
+            "x": 90,
+            "y": 1020
+          }
+        }
+      },
+      {
+        "name": "send_message_1",
+        "type": "send-message",
+        "transitions": [
+          {
+            "event": "sent"
+          },
+          {
+            "event": "failed"
+          }
+        ],
+        "properties": {
+          "offset": {
+            "x": -243,
+            "y": 1683
+          },
+          "service": "{{trigger.message.InstanceSid}}",
+          "channel": "{{trigger.message.ChannelSid}}",
+          "from": "{{flow.channel.address}}",
+          "to": "{{contact.channel.address}}",
+          "body": "Thank you! All set for {{flow.variables.day}} {{flow.variables.time | upcase}}"
+        }
+      },
+      {
+        "name": "send_message_2",
+        "type": "send-message",
+        "transitions": [
+          {
+            "event": "sent"
+          },
+          {
+            "event": "failed"
+          }
+        ],
+        "properties": {
+          "offset": {
+            "x": 230,
+            "y": 1640
+          },
+          "service": "{{trigger.message.InstanceSid}}",
+          "channel": "{{trigger.message.ChannelSid}}",
+          "from": "{{flow.channel.address}}",
+          "to": "{{contact.channel.address}}",
+          "body": "Sorry, something went wrong. Please contact the shift supervisor"
+        }
+      }
+    ],
+    "initial_state": "Trigger",
+    "flags": {
+      "allow_concurrent_calls": true
+    }
+  }
